@@ -39,11 +39,5 @@ print('End')
 # find js files
 # analize files
 #
-#
-#
-#
-
-
-
 
   
