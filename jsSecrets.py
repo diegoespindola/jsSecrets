@@ -1,20 +1,25 @@
 import argparse
 import requests
 from urllib3.exceptions import InsecureRequestWarning 
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 import re
 
-def getFileFullPath(archivos, url):
-    print('ToDo')
-    # // full url but use same schema as url in param            as seen on view-source:https://juice-shop.herokuapp.com/#/contact
-    # / absolute path
-    # ./../ relative path
-
-
+def getFileFullPath(archivos, urlparsed):
+    lista = list(map(lambda x: 
+                     '1' + x if x[:4] == 'http' # ruta fija
+                     else
+                        '2 ' + urlparsed.scheme + ':' + x if x[:2] == '//'  # schema only
+                        else 
+                            '3 '  + urlparsed.scheme + '://' + urlparsed.hostname + '/' + x if x[:1] == '/'   #absolute path
+                            else 
+                                '4 ' + urlparsed.scheme + '://' + urlparsed.netloc + '/' + (urlparsed.path if urlparsed.path != '/' else '') + x  #relative path
+                     , archivos))
+    return(lista)
+ 
 def getJsFilesFromHTML(bodyHTML):
-    regexp= re.compile(r"([\"'])(/[^\"']+\.js)\1")
+    regexp= re.compile(r"([\"'])([^\"']+\.js)\1")  # ToDo: must say src before the js file, or will fail like in  "https://es.wikipedia.org/wiki/Leon_Czolgosz#Referencias"
     matches = regexp.findall(bodyHTML)
-    return list(zip(*matches))[1]
+    return [] if not matches else   list(zip(*matches))[1]
 
 
 parser = argparse.ArgumentParser(prog='jsSecrets', description='search for secrets in Js files')
@@ -32,10 +37,10 @@ elif not(bool(params.url) ^  bool(params.path)):
 
 if params.url:
     
-    validation = urlparse(params.url)
-    if not validation.netloc or not validation.scheme:
+    urlparsed = urlparse(params.url)
+    if not urlparsed.netloc or not urlparsed.scheme:
         print('Error: Url is not valid')
-    elif  validation.netloc and  validation.scheme:
+    elif  urlparsed.netloc and  urlparsed.scheme:
         requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
         try:
             page = requests.get(params.url ,  verify=False, allow_redirects=True)
@@ -43,19 +48,16 @@ if params.url:
             print("Error: url not alive")
         else:
             if page.status_code==200:
-                absolutePath = validation.scheme + '://' + validation.hostname
-                relativePath = validation.scheme + '://' + validation.hostname + '/' + validation.path
-                FilesFromHTML = getJsFilesFromHTML(page.text)
-                print(FilesFromHTML)
+                filesFromHTML = getJsFilesFromHTML(page.text)
+                fullPathFilesFromHTML = getFileFullPath(filesFromHTML, urlparsed)
+                print(*fullPathFilesFromHTML, sep='\n')
             else:
                 print("Error: ", page.reason)
 elif params.path:
-    print('scan file')
+    print('Work in progress, please be patient')
 
 
-# ToDo
-# get full request body
-# find js files
+# ToDo:
 # analize files
 #recieve headers, cookies, tokens, etc to scan within login sector
 
