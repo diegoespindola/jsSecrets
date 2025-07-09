@@ -35,7 +35,7 @@ def getFileFullPath(urlparsed, jsFiles):
                         else 
                             urlparsed.scheme + '://' + urlparsed.hostname  + x if x[:1] == '/'   #absolute path
                             else 
-                                urlparsed.scheme + '://' + urlparsed.netloc + '/' + (urlparsed.path if urlparsed.path != '/' else '') + x  #relative path
+                                urlparsed.scheme + '://' + urlparsed.netloc + '' + (urlparsed.path if urlparsed.path != '/' else '') + x  #relative path
                      , jsFiles))
     return(lista)
 
