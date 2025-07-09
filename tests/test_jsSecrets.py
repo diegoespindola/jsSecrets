@@ -11,7 +11,7 @@ import jsSecrets as js
 
 class TestJsSecrets(unittest.TestCase):
 
-    def test_get_js_files_from_html(self):
+    def test_getJsFilesFromHTML(self):
         html = '''
         <script src="main.js"></script>
         <script src="/static/js/app.js"></script>
