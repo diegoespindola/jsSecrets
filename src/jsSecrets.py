@@ -114,7 +114,6 @@ def main():
     scripts = getJsFilesFromHTML(resp.text)
     fullUrls = getFileFullPath(urlparsed, scripts)
     for jsUrl in fullUrls:
-        logger.info(f'Found JS: {jsUrl}')
         secrets = seekJsSecrets(jsUrl)
         if(secrets):
             for secret in secrets:

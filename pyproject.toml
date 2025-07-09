@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jssecrets"
+version = "1.0.1"
+description = "Find secrets in js files from a given url"
+authors = [{ name="Diego", email="diego.espindola@gmail.com" }]
+license = "GPL-2.0"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "requests"
+]
+
+
+[project.scripts]
+jssecrets = "jsSecrets:main"

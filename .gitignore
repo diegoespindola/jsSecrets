@@ -1,2 +1,8 @@
 .vscode/launch.json
-includes
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.env
