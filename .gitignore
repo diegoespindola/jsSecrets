@@ -6,7 +6,7 @@ __pycache__/
 dist/
 build/
 .env
-'.coverage'
+.coverage
 .tox/
 coverage.xml
 .pytest_cache/
