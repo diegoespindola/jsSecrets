@@ -1,124 +1,138 @@
-import argparse
-import logging
-import requests
-from urllib3.exceptions import InsecureRequestWarning
-from urllib.parse import urljoin
-from urllib.parse import urlparse, urlsplit
-import re
+import unittest
+from unittest.mock import patch, mock_open, MagicMock
+from urllib.parse import urlparse
+import sys
+import os
+import builtins
 
-requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-logging.basicConfig()
-logger = logging.getLogger('logger')
+import jsSecrets as js
 
-def set_logging_level(level):
-    logger.setLevel({2: logging.ERROR, 1: logging.WARNING, 0: logging.INFO}.get(level, logging.DEBUG))
+class TestJsSecrets(unittest.TestCase):
 
-def get_js_files_from_html(html):
-    regexps = [
-        r'<script[^>]+src\s*?=\s*?[\"\']([^\"\']+\.js)[\"\']',
-        r'<meta[^>]+content\s*?=\s*?[\"\']([^\"\']+\.js)[\"\']',
-        r'<link[^>]+href\s*?=\s*?[\"\']([^\"\']+\.js)[\"\']',
-        r'[\"\']([^\"\']+\.js)[\"\']'
-    ]
-    matches = []
-    for pattern in regexps:
-        matches += re.findall(pattern, html, re.IGNORECASE)
-    return list(set(matches))
+    def test_get_js_files_from_html(self):
+        html = '''
+        <script src="main.js"></script>
+        <script src="/static/js/app.js"></script>
+        <meta content="https://example.com/script.js">
+        <link href="https://cdn.example.com/script2.js">
+        '''
+        result = js.get_js_files_from_html(html)
+        self.assertIn("main.js", result)
+        self.assertIn("/static/js/app.js", result)
+        self.assertIn("https://example.com/script.js", result)
+        self.assertIn("https://cdn.example.com/script2.js", result)
 
+    def test_getFileFullPath(self):
+        base_url = urlparse("https://example.com/some/path/")
+        js_files = [
+            "https://cdn.example.com/script.js",
+            "//cdn.example.com/script2.js",
+            "/static/main.js",
+            "local.js"
+        ]
+        result = js.getFileFullPath(base_url, js_files)
+        self.assertIn("https://cdn.example.com/script.js", result)
+        self.assertIn("https://cdn.example.com/script2.js", result)
+        self.assertIn("https://example.com/static/main.js", result)
+        self.assertIn("https://example.com/some/path/local.js", result)
 
-def getFileFullPath(urlparsed, js_files):
-    lista = list(map(lambda x: 
-                     x if x[:4] == 'http' # ruta fija
-                     else
-                        urlparsed.scheme + ':' + x if x[:2] == '//'  # schema only
-                        else 
-                            urlparsed.scheme + '://' + urlparsed.hostname  + x if x[:1] == '/'   #absolute path
-                            else 
-                                urlparsed.scheme + '://' + urlparsed.netloc + '' + (urlparsed.path if urlparsed.path != '/' else '') + x  #relative path
-                     , js_files))
-    return(lista)
+    def test_set_logging_level(self):
+        js.set_logging_level(2)
+        self.assertEqual(js.logger.level, js.logging.ERROR)
+        js.set_logging_level(1)
+        self.assertEqual(js.logger.level, js.logging.WARNING)
+        js.set_logging_level(0)
+        self.assertEqual(js.logger.level, js.logging.INFO)
+        js.set_logging_level(99)
+        self.assertEqual(js.logger.level, js.logging.DEBUG)
 
+    @patch("builtins.open", new_callable=mock_open, read_data="GET /index.html HTTP/1.1\nHost: example.com\n\n")
+    def test_parseRawRequest_get(self, mock_file):
+        session, url, method, body = js.parseRawRequest("dummy.txt")
+        self.assertEqual(method, "GET")
+        self.assertEqual(url, "http://example.com/index.html")
+        self.assertEqual(body, "")
+        self.assertEqual(session.headers["Host"], "example.com")
 
-def seekJsSecrets(js_url, session=None):
-    logger.debug(f'Scanning {js_url}')
-    try:
-        res = requests.get(js_url, allow_redirects=True, timeout=10, verify=False)
-    except Exception as e:
-        logger.warning(f'Could not fetch {js_url}: {e}')
-        return []
+    @patch("builtins.open", new_callable=mock_open, read_data="POST /submit HTTP/1.1\nHost: https://secure.com\nContent-Type: application/json\n\n{\"key\":\"value\"}")
+    def test_parseRawRequest_post(self, mock_file):
+        session, url, method, body = js.parseRawRequest("dummy.txt")
+        self.assertEqual(method, "POST")
+        self.assertEqual(url, "https://secure.com/submit")
+        self.assertEqual(body, "{\"key\":\"value\"}")
+        self.assertEqual(session.headers["Content-Type"], "application/json")
 
-    if res.status_code != 200:
-        logger.warning(f'Non-200 for {js_url}: {res.status_code}')
-        return []
+    @patch("requests.get")
+    def test_seekJsSecrets_finds_secrets(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = 'var token = "abcd1234secret5678"; var api_key = "api_abcdef123456";'
+        mock_get.return_value = mock_response
 
-    secrets = []
-    patterns = [
-        r'(?i)(api_key|apikey|token|access_token|auth|secret|password|username)\s*[:=]\s*["\']([^"\']{10,})["\']',
-        r'(?i)["\'](sk_live_[0-9a-zA-Z]{20,})["\']',
-    ]
-    for p in patterns:
-        found = re.findall(p, res.text)
-        secrets.extend(found)
-    return secrets
+        results = js.seekJsSecrets("https://example.com/file.js")
+        self.assertTrue(any("secret" in s[1] or "api_" in s[1] for s in results))
 
+    @patch("requests.get")
+    def test_seekJsSecrets_handles_non200(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
 
-def parseRawRequest(request_path):
-    with open(request_path, 'r') as f:
-        raw = f.read()
+        results = js.seekJsSecrets("https://example.com/notfound.js")
+        self.assertEqual(results, [])
 
-    header_part, body = raw.split('\\n\\n', 1) if '\\n\\n' in raw else (raw, '')
-    lines = header_part.splitlines()
-    method, path, _ = lines[0].split()
-    headers = dict(line.split(': ', 1) for line in lines[1:] if ': ' in line)
-    scheme = 'https' if headers.get('Host', '').startswith('https') else 'http'
-    url = f'{scheme}://{headers['Host']}{path}'
-    session = requests.Session()
-    session.headers.update(headers)
-    return session, url, method.upper(), body
+    @patch("requests.get")
+    def test_seekJsSecrets_handles_error(self, mock_get):
+        mock_get.side_effect = Exception("boom")
+        results = js.seekJsSecrets("https://example.com/broken.js")
+        self.assertEqual(results, [])
 
+class TestMainFunction(unittest.TestCase):
 
-def main():
-    parser = argparse.ArgumentParser(prog='jsSecrets', description='search for secrets in Js files')
-    parser.add_argument('-u', '--url', help='Url to hunt for js files and scan the secrets within, ie: https://brokencrystals.com/')
-    parser.add_argument('-r', '--req', help='Raw request File Path'  )
-    parser.add_argument('-v', '--verbose', type=int, default=0, help='Vervose mode (0-3) default 0')
-    args = parser.parse_args()
+    @patch("requests.get")
+    @patch("sys.argv", ["jsSecrets", "-u", "https://example.com"])
+    def test_main_with_url(self, mock_get):
+        html = '''
+        <script src="main.js"></script>
+        <script src="/static/app.js"></script>
+        '''
+        js_file_content = '''
+        var token = "abc123xyz789";
+        '''
 
-    set_logging_level(args.verbose)
+        mock_get.side_effect = [
+            MagicMock(status_code=200, text=html),
+            MagicMock(status_code=200, text=js_file_content),
+            MagicMock(status_code=200, text="")
+        ]
 
-    if args.req:
-        session, url, method, body = parseRawRequest(args.req)
-        logger.info(f'Requesting via {method}: {url}')
-        try:
-            resp = session.request(method, url, data=body if method == 'POST' else None, allow_redirects=True, verify=False)
-        except Exception as e:
-            logger.error(f'Error fetching: {e}')
-            return
-    elif args.url:
-        url = args.url
-        logger.info(f'GET {url}')
-        try:
-            resp = requests.get(url, allow_redirects=True, verify=False)
-        except Exception as e:
-            logger.error(f'Error: {e}')
-            return
-    else:
-        parser.print_help()
-        return
+        with patch("builtins.print") as mock_print:
+            js.main()
+            mock_print.assert_any_call('[https://example.com/static/app.js] (\'token\', \'abc123xyz789\')')
 
-    if resp.status_code != 200:
-        logger.warning(f'Status {resp.status_code}')
-        return
-    urlparsed = urlparse(args.url)
-    scripts = get_js_files_from_html(resp.text)
-    fullUrls = getFileFullPath(urlparsed, scripts)
-    for jsUrl in fullUrls:
-        secrets = seekJsSecrets(jsUrl)
-        if(secrets):
-            for secret in secrets:
-                print(f'[{jsUrl}] {secret}')
-        else:
-            print(' No secrets Found')
-if __name__ == '__main__':
-    main()
+    @patch("builtins.open", new_callable=mock_open, read_data="GET / HTTP/1.1\nHost: example.com\n\n")
+    @patch("requests.Session.request")
+    @patch("sys.argv", ["jsSecrets", "-r", "dummy.req"])
+    def test_main_with_raw_request(self, mock_request, mock_open_file):
+        html = '<script src="secrets.js"></script>'
+        js_file_content = 'var api_key = "api_987654321";'
+
+        mock_request.side_effect = [
+            MagicMock(status_code=200, text=html),
+            MagicMock(status_code=200, text=js_file_content)
+        ]
+
+        with patch("builtins.print") as mock_print:
+            js.main()
+            mock_print.assert_any_call('[http://example.com/secrets.js] (\'api_key\', \'api_987654321\')')
+
+    @patch("sys.argv", ["jsSecrets"])
+    def test_main_without_args(self):
+        with patch("builtins.print") as mock_print:
+            js.main()
+            mock_print.assert_called()  # help message is printed
+            
+if __name__ == "__main__":
+    unittest.main()
