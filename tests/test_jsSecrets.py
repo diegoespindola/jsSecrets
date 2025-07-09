@@ -11,14 +11,14 @@ import jsSecrets as js
 
 class TestJsSecrets(unittest.TestCase):
 
-    def test_getJsFilesFromHTML(self):
+    def test_get_js_files_from_html(self):
         html = '''
         <script src="main.js"></script>
         <script src="/static/js/app.js"></script>
         <meta content="https://example.com/script.js">
         <link href="https://cdn.example.com/script2.js">
         '''
-        result = js.getJsFilesFromHTML(html)
+        result = js.get_js_files_from_html(html)
         self.assertIn("main.js", result)
         self.assertIn("/static/js/app.js", result)
         self.assertIn("https://example.com/script.js", result)
