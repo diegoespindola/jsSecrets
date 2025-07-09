@@ -11,10 +11,10 @@ requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 logging.basicConfig()
 logger = logging.getLogger('logger')
 
-def setLoggingLevel(level):
+def set_logging_level(level):
     logger.setLevel({2: logging.ERROR, 1: logging.WARNING, 0: logging.INFO}.get(level, logging.DEBUG))
 
-def getJsFilesFromHTML(html):
+def get_js_files_from_html(html):
     regexps = [
         r'<script[^>]+src\s*?=\s*?[\"\']([^\"\']+\.js)[\"\']',
         r'<meta[^>]+content\s*?=\s*?[\"\']([^\"\']+\.js)[\"\']',
@@ -27,7 +27,7 @@ def getJsFilesFromHTML(html):
     return list(set(matches))
 
 
-def getFileFullPath(urlparsed, jsFiles):
+def getFileFullPath(urlparsed, js_files):
     lista = list(map(lambda x: 
                      x if x[:4] == 'http' # ruta fija
                      else
@@ -36,20 +36,20 @@ def getFileFullPath(urlparsed, jsFiles):
                             urlparsed.scheme + '://' + urlparsed.hostname  + x if x[:1] == '/'   #absolute path
                             else 
                                 urlparsed.scheme + '://' + urlparsed.netloc + '' + (urlparsed.path if urlparsed.path != '/' else '') + x  #relative path
-                     , jsFiles))
+                     , js_files))
     return(lista)
 
 
-def seekJsSecrets(jsUrl, session=None):
-    logger.debug(f'Scanning {jsUrl}')
+def seekJsSecrets(js_url, session=None):
+    logger.debug(f'Scanning {js_url}')
     try:
-        res = requests.get(jsUrl, allow_redirects=True, timeout=10, verify=False)
+        res = requests.get(js_url, allow_redirects=True, timeout=10, verify=False)
     except Exception as e:
-        logger.warning(f'Could not fetch {jsUrl}: {e}')
+        logger.warning(f'Could not fetch {js_url}: {e}')
         return []
 
     if res.status_code != 200:
-        logger.warning(f'Non-200 for {jsUrl}: {res.status_code}')
+        logger.warning(f'Non-200 for {js_url}: {res.status_code}')
         return []
 
     secrets = []
@@ -63,12 +63,12 @@ def seekJsSecrets(jsUrl, session=None):
     return secrets
 
 
-def parseRawRequest(requestPpath):
-    with open(requestPpath, 'r') as f:
+def parseRawRequest(request_path):
+    with open(request_path, 'r') as f:
         raw = f.read()
 
-    headerPart, body = raw.split('\\n\\n', 1) if '\\n\\n' in raw else (raw, '')
-    lines = headerPart.splitlines()
+    header_part, body = raw.split('\\n\\n', 1) if '\\n\\n' in raw else (raw, '')
+    lines = header_part.splitlines()
     method, path, _ = lines[0].split()
     headers = dict(line.split(': ', 1) for line in lines[1:] if ': ' in line)
     scheme = 'https' if headers.get('Host', '').startswith('https') else 'http'
@@ -85,7 +85,7 @@ def main():
     parser.add_argument('-v', '--verbose', type=int, default=0, help='Vervose mode (0-3) default 0')
     args = parser.parse_args()
 
-    setLoggingLevel(args.verbose)
+    set_logging_level(args.verbose)
 
     if args.req:
         session, url, method, body = parseRawRequest(args.req)
@@ -111,7 +111,7 @@ def main():
         logger.warning(f'Status {resp.status_code}')
         return
     urlparsed = urlparse(args.url)
-    scripts = getJsFilesFromHTML(resp.text)
+    scripts = get_js_files_from_html(resp.text)
     fullUrls = getFileFullPath(urlparsed, scripts)
     for jsUrl in fullUrls:
         secrets = seekJsSecrets(jsUrl)
