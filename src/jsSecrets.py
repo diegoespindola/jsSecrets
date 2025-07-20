@@ -2,9 +2,9 @@ import argparse
 import logging
 import requests
 from urllib3.exceptions import InsecureRequestWarning
-from urllib.parse import urljoin
-from urllib.parse import urlparse, urlsplit
+from urllib.parse import urljoin, urlparse, urlsplit
 import re
+import sys
 
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
@@ -26,7 +26,6 @@ def get_js_files_from_html(html):
         matches += re.findall(pattern, html, re.IGNORECASE)
     return list(set(matches))
 
-
 def getFileFullPath(urlparsed, js_files):
     lista = list(map(lambda x: 
                      x if x[:4] == 'http' # ruta fija
@@ -37,8 +36,7 @@ def getFileFullPath(urlparsed, js_files):
                             else 
                                 urlparsed.scheme + '://' + urlparsed.netloc + '' + (urlparsed.path if urlparsed.path != '/' else '') + x  #relative path
                      , js_files))
-    return(lista)
-
+    return lista
 
 def seekJsSecrets(js_url, session=None):
     logger.debug(f'Scanning {js_url}')
@@ -62,12 +60,11 @@ def seekJsSecrets(js_url, session=None):
         secrets.extend(found)
     return secrets
 
-
 def parseRawRequest(request_path):
     with open(request_path, 'r') as f:
         raw = f.read()
 
-    header_part, body = raw.split('\\n\\n', 1) if '\\n\\n' in raw else (raw, '')
+    header_part, body = raw.split('\n\n', 1) if '\n\n' in raw else (raw, '')
     lines = header_part.splitlines()
     method, path, _ = lines[0].split()
     headers = dict(line.split(': ', 1) for line in lines[1:] if ': ' in line)
@@ -77,12 +74,23 @@ def parseRawRequest(request_path):
     session.headers.update(headers)
     return session, url, method.upper(), body
 
+def analyze_js_urls(js_urls):
+    for js_url in js_urls:
+        js_url = js_url.strip()
+        if not js_url:
+            continue
+        secrets = seekJsSecrets(js_url)
+        if secrets:
+            for secret in secrets:
+                print(f'[{js_url}] {secret}')
+        else:
+            print(f'[{js_url}] No secrets found')
 
 def main():
     parser = argparse.ArgumentParser(prog='jsSecrets', description='search for secrets in Js files')
     parser.add_argument('-u', '--url', help='Url to hunt for js files and scan the secrets within, ie: https://brokencrystals.com/')
-    parser.add_argument('-r', '--req', help='Raw request File Path'  )
-    parser.add_argument('-v', '--verbose', type=int, default=0, help='Vervose mode (0-3) default 0')
+    parser.add_argument('-r', '--req', help='Raw request File Path')
+    parser.add_argument('-v', '--verbose', type=int, default=0, help='Verbose mode (0-3), default 0')
     args = parser.parse_args()
 
     set_logging_level(args.verbose)
@@ -104,21 +112,20 @@ def main():
             logger.error(f'Error: {e}')
             return
     else:
-        parser.print_help()
+        # 🔽 Si no hay ni -u ni -r, leemos desde stdin
+        logger.info('Reading JS URLs from stdin...')
+        js_urls = sys.stdin.read().splitlines()
+        analyze_js_urls(js_urls)
         return
 
     if resp.status_code != 200:
         logger.warning(f'Status {resp.status_code}')
         return
-    urlparsed = urlparse(args.url)
+
+    urlparsed = urlparse(url)
     scripts = get_js_files_from_html(resp.text)
     fullUrls = getFileFullPath(urlparsed, scripts)
-    for jsUrl in fullUrls:
-        secrets = seekJsSecrets(jsUrl)
-        if(secrets):
-            for secret in secrets:
-                print(f'[{jsUrl}] {secret}')
-        else:
-            print(' No secrets Found')
+    analyze_js_urls(fullUrls)
+
 if __name__ == '__main__':
     main()
