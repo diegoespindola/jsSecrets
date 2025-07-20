@@ -34,7 +34,7 @@ def getFileFullPath(urlparsed, js_files):
                         else 
                             urlparsed.scheme + '://' + urlparsed.hostname  + x if x[:1] == '/'   #absolute path
                             else 
-                                urlparsed.scheme + '://' + urlparsed.netloc + '' + (urlparsed.path if urlparsed.path != '/' else '') + x  #relative path
+                                urlparsed.scheme + '://' + urlparsed.netloc + '/' + (urlparsed.path if urlparsed.path != '/' else '') + x  #relative path
                      , js_files))
     return lista
 
@@ -82,9 +82,9 @@ def analyze_js_urls(js_urls):
         secrets = seekJsSecrets(js_url)
         if secrets:
             for secret in secrets:
-                print(f'[{js_url}] {secret}')
+                print(f'[FOUND][{js_url}] {secret}')
         else:
-            print(f'[{js_url}] No secrets found')
+            logger.debug(f'[{js_url}] No secrets found')
 
 def main():
     parser = argparse.ArgumentParser(prog='jsSecrets', description='search for secrets in Js files')
