@@ -111,11 +111,13 @@ def main():
         except Exception as e:
             logger.error(f'Error: {e}')
             return
-    else:
-        # 🔽 Si no hay ni -u ni -r, leemos desde stdin
+    elif not sys.stdin.isatty():
         logger.info('Reading JS URLs from stdin...')
         js_urls = sys.stdin.read().splitlines()
         analyze_js_urls(js_urls)
+        return
+    else:
+        parser.print_help()
         return
 
     if resp.status_code != 200:
