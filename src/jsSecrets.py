@@ -108,13 +108,31 @@ def main():
         logger.info(f'GET {url}')
         try:
             resp = requests.get(url, allow_redirects=True, verify=False)
+            matches = re.finditer(r'javascript', resp.headers['Content-Type'], re.MULTILINE | re.IGNORECASE)
+            tipoURL = 'js' if len(list(matches)) > 0  else 'url'  
         except Exception as e:
             logger.error(f'Error: {e}')
             return
     elif not sys.stdin.isatty():
-        logger.info('Reading JS URLs from stdin...')
-        js_urls = sys.stdin.read().splitlines()
-        analyze_js_urls(js_urls)
+        logger.info('Reading URLs from stdin...')
+
+        stdin_urls = sys.stdin.read().splitlines()
+        for url in stdin_urls :
+
+            try:
+                resp = requests.get(url, allow_redirects=True, verify=False)
+                matches = re.finditer(r'javascript', resp.headers['Content-Type'], re.MULTILINE | re.IGNORECASE)
+                tipoURL = 'js' if len(list(matches)) > 0  else 'url'  
+            except Exception as e:
+                logger.error(f'Error: {e}')
+                return
+            if tipoURL == 'url' :
+                urlparsed = urlparse(url)
+                scripts = get_js_files_from_html(resp.text)
+                fullUrls = getFileFullPath(urlparsed, scripts)
+                analyze_js_urls(fullUrls)
+            elif tipoURL == 'js' :
+                analyze_js_urls([url])
         return
     else:
         parser.print_help()
@@ -123,11 +141,15 @@ def main():
     if resp.status_code != 200:
         logger.warning(f'Status {resp.status_code}')
         return
-
-    urlparsed = urlparse(url)
-    scripts = get_js_files_from_html(resp.text)
-    fullUrls = getFileFullPath(urlparsed, scripts)
-    analyze_js_urls(fullUrls)
+    
+    print (tipoURL)
+    if tipoURL == 'url' :
+        urlparsed = urlparse(url)
+        scripts = get_js_files_from_html(resp.text)
+        fullUrls = getFileFullPath(urlparsed, scripts)
+        analyze_js_urls(fullUrls)
+    elif tipoURL == 'js' :
+        analyze_js_urls([url])
 
 if __name__ == '__main__':
     main()
