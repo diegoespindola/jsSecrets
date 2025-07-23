@@ -1,0 +1,56 @@
+name: Generate and Upload SBOM
+
+on:
+  workflow_call:
+    inputs:
+      cdx_version:
+        required: false
+        type: string
+        default: v11.2.3
+        description: >
+          Version tag of the CycloneDX generator to use. 
+          Find a listing of available versions at: 
+          https://github.com/CycloneDX/cdxgen/pkgs/container/cdxgen/versions?filters%5Bversion_type%5D=tagged
+      cdx_image:
+        required: false
+        type: string
+        default: cdxgen
+        description: >
+          Image name of the CycloneDX generator to use.
+          Helpful for choosing a specific language version (e.g. cdxgen-java17).
+          Find a listing of available images at: https://github.com/orgs/CycloneDX/packages?repo_name=cdxgen
+      use_cdxgen_debug_mode:
+        required: false
+        type: boolean
+        default: false
+        description: >
+          Enable debug mode for CycloneDX generator
+    secrets:
+      # setting some secrets to be used in the workflow
+
+jobs:
+  generate-sbom-and-upload-to-dependency-track:
+    runs-on: ubuntu-latest
+    steps:
+      # First, we need to set up the environment and install necessary tools like
+      # checkout the code, set credentials for private registries or hosting providers 
+      - name: Setup environment
+      - uses: ...
+      # Since we may access private repositories or registries, we need to authorize to GitHub
+      - name: Authorize to Github
+        run: |
+          git config url.https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/.insteadOf https://github.com/
+      - name: Generate SBOM
+        run: |
+          docker run --rm \
+          ${{ inputs.use_cdxgen_debug_mode && '-e CDXGEN_DEBUG_MODE=debug' || '' }} \
+          -e FETCH_LICENSE=true \
+          -v /tmp:/tmp -v $(pwd):/app:rw \
+          ghcr.io/cyclonedx/${{ inputs.cdx_image }}:${{ inputs.cdx_version }} \
+          -r /app -o /app/sbom.json
+      # After generating the SBOM, it is uploaded it to Dependency-Track
+      - name: Upload SBOM to Dependency-Track
+        run: |
+          echo "{\"project\": \"f80d9963-3777-49c2-bd58-2bb852b705e8\",\"bom\": \"$(cat sbom.json | base64 --wrap=0)\"}" > sbom_64.json
+          curl -X PUT -H "Content-Type: application/json" -H "X-Api-Key: ${{ secrets.DEPTRACK_TOKEN }}" \
+          -d @sbom_64.json https://vbulletin-sink-strongly-directive.trycloudflare.com/api/v1/bom/
