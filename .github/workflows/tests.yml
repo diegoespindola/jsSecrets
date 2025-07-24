@@ -43,6 +43,7 @@ jobs:
                 SONAR_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
 
     dependency-check:
+      needs: sonarqube
       runs-on: ubuntu-latest
 
       steps:
@@ -57,10 +58,10 @@ jobs:
             format: HTML
             out: reports
             args: >
-              --failOnCVSS 7
+              --failOnCVSS 1
               --enableExperimental
               --enableRetired
-              --scan .
+              --scan ./src
               --noupdate
 
         - name: Upload report
