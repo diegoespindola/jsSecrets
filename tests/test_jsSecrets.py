@@ -37,6 +37,8 @@ class TestJsSecrets(unittest.TestCase):
         self.assertIn("https://cdn.example.com/script2.js", result)
         self.assertIn("https://example.com/static/main.js", result)
         self.assertIn("https://example.com/some/path/local.js", result)
+        self.assertIn("https://example.com//some/path/local.js", result)
+        
 
     @patch("builtins.open", new_callable=mock_open, read_data="GET /index.html HTTP/1.1\nHost: example.com\n\n")
     def test_parseRawRequest_get(self, mock_file):
