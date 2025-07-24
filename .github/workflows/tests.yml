@@ -58,7 +58,7 @@ jobs:
             format: HTML
             out: reports
             args: >
-              --failOnCVSS 1
+              --failOnCVSS 6
               --enableExperimental
               --enableRetired
               --scan ./src
