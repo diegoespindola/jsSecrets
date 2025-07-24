@@ -45,15 +45,3 @@ jobs:
         with:
           password: ${{ secrets.PYP_TOKEN }}
           packages-dir: dist/
-
-  sbom-publish:
-    runs-on: ubuntu-latest
-    needs: release-build
-
-    steps:
-      - name: SBOM Generation and upload
-        uses: AppThreat/cdxgen-action@v1
-        with:
-          output: "./reports/bom.xml"
-          serverUrl: "https://vbulletin-sink-strongly-directive.trycloudflare.com/"
-          apiKey: ${{ secrets.DEPTRACK_TOKEN }}
