@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jssecrets"
-version = "1.0.10"
+version = "1.0.11"
 description = "Find secrets in js files from a given url"
 authors = [{ name="Diego", email="diego.espindola@gmail.com" }]
 license = "GPL-2.0"
