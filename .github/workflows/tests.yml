@@ -1,4 +1,4 @@
-name: ToxAndSonar
+name: unitTests sonarQ and  depTrack
 on:
     push:
         branches:
@@ -6,7 +6,7 @@ on:
     pull_request:
         types: [opened, synchronize, reopened]
 jobs:
-    release-build:
+    build:
       runs-on: ubuntu-latest
 
       steps:
@@ -21,16 +21,9 @@ jobs:
             python -m pip install build
             python -m build
 
-        - name: Upload distributions
-          uses: actions/upload-artifact@v4
-          with:
-            name: release-dists
-            path: dist/
-
-
     sonarqube:
         name: SonarQube cloud
-        needs: release-build
+        needs: build
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4

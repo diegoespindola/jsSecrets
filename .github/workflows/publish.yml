@@ -1,8 +1,8 @@
-name: Upload Python Package
+name: Upload and publish
 
 on:
   push:
-    #paths: 'pyproject.toml'
+    paths: 'pyproject.toml'
 permissions:
   contents: read
 
