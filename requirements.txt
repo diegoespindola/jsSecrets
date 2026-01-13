@@ -166,7 +166,7 @@ unicodedata2==15.1.0
 urllib3==2.6.0
 userpath==1.9.2
 validators==0.20.0
-virtualenv==20.31.2
+virtualenv==20.36.1
 wadllib==2.0.0
 webencodings==0.5.1
 websocket-client==1.8.0
