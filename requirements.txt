@@ -102,7 +102,7 @@ pycups==2.0.4
 pygccxml==3.0.0
 Pygments==2.20.0
 PyGObject==3.50.0
-PyJWT==2.12.0
+PyJWT==2.13.0
 PyOpenGL==3.1.9
 pyparsing==3.1.2
 pyproject-api==1.9.1
