@@ -178,5 +178,5 @@ xdg==5
 xkit==0.0.0
 XlsxWriter==3.1.9
 yattag==1.16.1
-yt-dlp==2025.3.27
+yt-dlp==2026.6.9
 zipp==3.21.0
