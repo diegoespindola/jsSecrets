@@ -39,7 +39,7 @@ exceptiongroup==1.2.2
 filelock==3.18.0
 fonttools==4.55.3
 fs==2.4.16
-h11==0.14.0
+h11==0.16.0
 html5lib-modern==1.2
 httplib2==0.22.0
 id==1.5.0
