@@ -88,7 +88,7 @@ outcome==1.2.0
 packaging==25.0
 passlib==1.7.4
 pexpect==4.9.0
-pillow==11.1.0
+pillow==12.2.0
 pipx==1.7.1
 platformdirs==4.3.6
 pluggy==1.5.0
