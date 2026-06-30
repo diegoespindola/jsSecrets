@@ -127,7 +127,7 @@ pyzmq==26.2.1
 ratelimit==2.2.1
 readme_renderer==44.0
 referencing==0.35.1
-requests==2.19.1
+requests==2.33.0
 requests-file==2.1.0
 requests-toolbelt==1.0.0
 rfc3986==2.0.0
